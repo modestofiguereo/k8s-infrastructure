@@ -202,7 +202,11 @@ kubectl config set-context xhacluster.gbhplayground.com \
 --kubeconfig=~/path/to/config
 ```
 
-## 6) Deploy jenkins (@TODO ADD THE TUTORIAL HERE)
+## 6) Deploy jenkins (@TODO: ADD THE TUTORIAL HERE)
 kubectl -n kube-system create sa jenkins
 kubectl create clusterrolebinding jenkins --clusterrole cluster-admin --serviceaccount=jenkins:default
 kubectl create clusterrolebinding jenkins --clusterrole cluster-admin --serviceaccount=jenkins:default
+
+@TODO: Add section for kube-ingress-aws-controller deployment
+@TODO: Add section for skipper deployment
+@TODO: Add section for external-dns deployment
