@@ -1,0 +1,35 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    io.kompose.service: jenkins
+spec:
+  replicas: 1
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: jenkins
+    spec:
+      containers:
+      - name: jenkins
+        image: 836585610568.dkr.ecr.us-east-2.amazonaws.com/gbh-jenkins:latest
+        env:
+        - name: JAVA_OPTS
+          value: -Djenkins.install.runSetupWizard=false
+        ports:
+        - name: http-port
+          containerPort: 8080
+        - name: jnlp-port
+          containerPort: 50000
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      volumes:
+      - name: jenkins-home
+        emptyDir: {}
+status: {}

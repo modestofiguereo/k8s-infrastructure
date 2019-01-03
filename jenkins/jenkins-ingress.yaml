@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: jenkins
+  labels:
+    io.kompose.service: jenkins
+    application: jenkins
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    external-dns.alpha.kubernetes.io/hostname: "ci.gbhplayground.com"
+spec:
+  backend:
+    serviceName: jenkins
+    servicePort: 80
+  rules:
+  - host: ci.gbhplayground.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: jenkins
+          servicePort: 80
