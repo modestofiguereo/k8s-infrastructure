@@ -1,11 +1,28 @@
 # Deploying a Highly Available/Production Ready Kubernetes Cluster
 
-## 1) Installing AWS CLI
+#### Requirements
+- [AWS CLI](https://aws.amazon.com/cli/)
+- [Kops](https://github.com/kubernetes/kops)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+- [OpenSSL](https://www.openssl.org/)
+
+#### Useful
+- [kubectx & kubens](https://github.com/ahmetb/kubectx)
+
+### Content
+- [Installing AWS CLI](#installing-aws-cli)
+- [Installing kops](#installing-kops)
+- [Installing kubectl](#installing-kubectl)
+- [Create kops user](#create-kops-user)
+- [Create k8s cluster](#create-k8s-cluster)
+- [Grant access to your teammates](#grant-access-to-your-teammates)
+
+## Installing AWS CLI
 
 If you already have AWS CLI you can skip this section.
 
 #### First let's get PIP
-**NOTE:** Depending on your env maybe you should replace _.profile_ with _.bash_profile_, or _.bash_login_.
+**NOTE:** Depending on your env maybe you should replace `.profile` with `.bash_profile`, or `.bash_login`.
 ```
 curl -O https://bootstrap.pypa.io/get-pip.py;
 python get-pip.py --user;
@@ -20,16 +37,17 @@ pip install awscli --upgrade --user;
 aws --version;
 ```
 
-## 2) Installing Kops
-Now let's get the real melma [Kops](https://github.com/kubernetes/kops):
+## Installing Kops
+
+Kops is a tool that automates the creation and maintenance of the kubernentes cluster.
 ```
 curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64;
 chmod +x ./kops;
 sudo mv ./kops /usr/local/bin/;
 ```
 
-## 3) Installing kubectl
-We need [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) in order to interect with the kubernetes cluster:
+## Installing kubectl
+We need kubectl in order to interect with the kubernetes cluster:
 
 ```
 curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl;
@@ -37,18 +55,23 @@ chmod +x ./kubectl;
 sudo mv ./kubectl /usr/local/bin/kubectl;
 ```
 
-## 3) Create kops user
+## Create kops user
 
+export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
+export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
 ```
-aws iam create-group --group-name kops; # Create group for kops
+aws iam create-group --group-name kops;                                                                     # Create group for kops
+
 aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops;     # Give permission for EC2
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops; #Give permission for Route53
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops;      #Give permission for S3
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops;           #Give permission for IAM
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops;     #Give permission for the VPC
-aws iam create-user --user-name kops;                                                                       #Create user for kops
-aws iam add-user-to-group --user-name kops --group-name kops;                                               #Add user kops to the group kops
-aws iam create-access-key --user-name kops;                                                                 #Generate access key
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops; # Give permission for Route53
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops;      # Give permission for S3
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops;           # Give permission for IAM
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops;     # Give permission for the VPC
+
+aws iam create-user --user-name kops;                                                                       # Create user for kops
+aws iam add-user-to-group --user-name kops --group-name kops;                                               # Add user kops to the group kops
+
+aws iam create-access-key --user-name kops;                                                                 # Generate access key
 ```
 
 You should record the SecretAccessKey and AccessKeyID in the returned JSON output, and then use them below:
@@ -59,11 +82,14 @@ aws configure           # Use your new access and secret key here
 aws iam list-users      # you should see a list of all your IAM users here
 
 # Because "aws configure" doesn't export these vars for kops to use, we export them now
-export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
-export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
+
+echo "export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)" | tee -a ~/.profile;
+echo "export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)" | tee -a ~/.profile;
+
+source ~/.profile;
 ```
 
-## 4) Create K8s cluster
+## Create k8s cluster
 
 Put the name of your cluster and the state store in these variables:
 ```
@@ -155,13 +181,16 @@ Apply the changes with `kops update cluster --name ${NAME} --yes`.
 
 **NOTE: you can tweak the details (for example, min and max nodes for auto scaling) of you instance group by executing `kops edit ig <instance group name>`**
 
-## 5) Give access to your team members (optional)
+## Grant access to your teammates
+
+#### Generate the certificates
 
 Copy the key and certificates from the kops configuration:
 ```
 export KEY=6640472233551988726606897286.key;
 export CRT=6640472233551988726606897286.crt;
 export MASTER_CRT=6640472252869426228642146829.crt;
+export USERNAME=<USERNAME>;
 
 aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/private/ca/${KEY} ca.keY;
 aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/issued/ca/${CRT} ca.crt;
@@ -170,19 +199,20 @@ aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/issued/maste
 
 Generate certificates for the user:
 ```
-openssl genrsa -out user.key 4096
-openssl req -new -key user.key -out user.csr -subj '/CN=<USERNAME>/O=devops'
-openssl x509 -req -in user.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out user.crt -days 365
+openssl genrsa -out ${USERNAME}.key 4096
+openssl req -new -key ${USERNAME}.key -out ${USERNAME}.csr -subj '/CN=${USERNAME}/O=devops'
+openssl x509 -req -in ${USERNAME}.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out ${USERNAME}.crt -days 365
 ```
 
-Bind the role for that user in your cluster (here I'm binding admin role but you can bind a role that restrict user capabilities):
+Bind the view role to the user:
 ```
-kubectl create clusterrolebinding user-cluster-admin-binding --clusterrole=cluster-admin --user=angel -n kube-system
+kubectl create clusterrolebinding viewer-cluster-admin-binding --clusterrole=view --user=viewer -n <NAMESPACE>
 ```
 
-### Create a kubeconfig for the user
+#### Create a kubeconfig for the user
 
-**NOTE: After generating the config file send it through a secure channel the user.**
+**NOTE: After generating the config file send it through a secure channel the your teammates.** <br />
+**NOTE: You can generate different kubeconfig files for each of your teammates with different roles and for different namespaces.**
 ```
 kubectl config set-cluster xhacluster.gbhplayground.com \
 --server=https://api.xhacluster.gbhplayground.com \
@@ -191,8 +221,8 @@ kubectl config set-cluster xhacluster.gbhplayground.com \
 --kubeconfig=~/path/to/config
 
 kubectl config set-credentials xhacluster.gbhplayground.com \
---client-certificate=./user.crt \
---client-key=./user.key \
+--client-certificate=./${USERNAME}.crt \
+--client-key=./${USERNAME}.key \
 --embed-certs=true \
 --kubeconfig=~/path/to/config
 
@@ -202,12 +232,8 @@ kubectl config set-context xhacluster.gbhplayground.com \
 --kubeconfig=~/path/to/config
 ```
 
-## 6) Deploy jenkins (@TODO: ADD THE TUTORIAL HERE)
-```
-kubectl -n kube-system create sa jenkins
-kubectl create clusterrolebinding jenkins --clusterrole cluster-admin --serviceaccount=jenkins:default
-```
-
+- @TODO: Add section for kubernetes dashboard and heapster deployment
 - @TODO: Add section for kube-ingress-aws-controller deployment
 - @TODO: Add section for skipper deployment
 - @TODO: Add section for external-dns deployment
+- @TODO: Add section for Jenkins deployment
