@@ -209,7 +209,7 @@ openssl x509 -req -in ${USERNAME}.csr -CA ca.crt -CAkey ca.key -CAcreateserial -
 
 Bind the view role to the user:
 ```
-kubectl create clusterrolebinding viewer-cluster-admin-binding --clusterrole=view --user=viewer -n <NAMESPACE>
+kubectl create clusterrolebinding viewer-cluster-admin-binding --clusterrole=view --user=${USERNAME} -n <NAMESPACE>
 ```
 
 #### Create a kubeconfig for the user
