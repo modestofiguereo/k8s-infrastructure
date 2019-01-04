@@ -1,4 +1,4 @@
-# Deploying a Highly Available/Production Ready Kubernetes Cluster
+# Deploying a Highly Available/Production Ready Kubernetes Cluster in AWS
 
 #### Requirements
 - [AWS CLI](https://aws.amazon.com/cli/)
@@ -91,6 +91,8 @@ source ~/.profile;
 
 ## Create k8s cluster
 
+#### Create S3 state store bucket
+
 Put the name of your cluster and the state store in these variables:
 ```
 export NAME=<YOUR_CLUSTER_NAME>
@@ -108,17 +110,19 @@ aws s3api create-bucket \
 aws s3api put-bucket-versioning --bucket prefix-example-com-state-store  --versioning-configuration Status=Enabled
 ```
 
+#### Create cluster
+
 Create a HA cluster (you can find more information on these flags on kops documenetation):
 ```
 kops create cluster \
-     --master-count=3 \
-     --master-size t2.small \
-     --node-count 5 \
-     --node-size t2.micro \
-     --zones us-east-2a,us-east-2b,us-east-2c \
-     --master-zones us-east-2a,us-east-2b,us-east-2c \
-     --cloud-labels "Client=GBH,PartOf=xhacluster,CreatedBy=Modesto Figuereo" \
-     ${NAME}
+   --master-count=3 \                                                          # number of master nodes
+   --master-size t2.small \                                                    # size of the master instances
+   --node-count 5 \                                                            # number of nodes
+   --node-size t2.micro \                                                      # size of node instances
+   --zones us-east-2a,us-east-2b,us-east-2c \                                  # availability zone to use for nodes
+   --master-zones us-east-2a,us-east-2b,us-east-2c \                           # availability zone to use for master
+   --cloud-labels "Client=GBH,PartOf=xhacluster,CreatedBy=Modesto Figuereo" \  # Some labels/tags
+   ${NAME}
 ```
 
 #### Add policy types to the cluster
@@ -155,7 +159,6 @@ Add this under the `spec` section:
              "iam:GetServerCertificate",
              "iam:ListServerCertificates",
              "iam:CreateServiceLinkedRole",
-             "route53:FullAccess",
              "route53:GetHostedZone",
              "route53:ListHostedZonesByName",
              "route53:CreateHostedZone",
@@ -179,7 +182,7 @@ Add this under the `spec` section:
 
 Apply the changes with `kops update cluster --name ${NAME} --yes`.
 
-**NOTE: you can tweak the details (for example, min and max nodes for auto scaling) of you instance group by executing `kops edit ig <instance group name>`**
+**NOTE: you can tweak the details of you instance group by executing (for example, min and max nodes for auto scaling) `kops edit ig <instance group name>`**
 
 ## Grant access to your teammates
 
@@ -187,9 +190,9 @@ Apply the changes with `kops update cluster --name ${NAME} --yes`.
 
 Copy the key and certificates from the kops configuration:
 ```
-export KEY=6640472233551988726606897286.key;
-export CRT=6640472233551988726606897286.crt;
-export MASTER_CRT=6640472252869426228642146829.crt;
+export KEY=<KEY_FILENAME>.key;
+export CRT=<CRT_FILENAME>.crt;
+export MASTER_CRT=<CRT_FILENAME>.crt;
 export USERNAME=<USERNAME>;
 
 aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/private/ca/${KEY} ca.keY;
@@ -215,21 +218,21 @@ kubectl create clusterrolebinding viewer-cluster-admin-binding --clusterrole=vie
 **NOTE: You can generate different kubeconfig files for each of your teammates with different roles and for different namespaces.**
 ```
 kubectl config set-cluster xhacluster.gbhplayground.com \
---server=https://api.xhacluster.gbhplayground.com \
---certificate-authority=./ca_master.crt \
---embed-certs=true \
---kubeconfig=~/path/to/config
+  --server=https://api.xhacluster.gbhplayground.com \
+  --certificate-authority=./ca_master.crt \
+  --embed-certs=true \
+  --kubeconfig=~/path/to/config
 
 kubectl config set-credentials xhacluster.gbhplayground.com \
---client-certificate=./${USERNAME}.crt \
---client-key=./${USERNAME}.key \
---embed-certs=true \
---kubeconfig=~/path/to/config
+  --client-certificate=./${USERNAME}.crt \
+  --client-key=./${USERNAME}.key \
+  --embed-certs=true \
+  --kubeconfig=~/path/to/config
 
 kubectl config set-context xhacluster.gbhplayground.com \
---cluster=xhacluster.gbhplayground.com \
---user=xhacluster.gbhplayground.com \
---kubeconfig=~/path/to/config
+  --cluster=xhacluster.gbhplayground.com \
+  --user=xhacluster.gbhplayground.com \
+  --kubeconfig=~/path/to/config     
 ```
 
 - @TODO: Add section for kubernetes dashboard and heapster deployment
