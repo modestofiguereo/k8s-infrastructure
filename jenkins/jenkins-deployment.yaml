@@ -3,19 +3,19 @@ kind: Deployment
 metadata:
   name: jenkins
   namespace: jenkins
-  labels:
-    io.kompose.service: jenkins
 spec:
   replicas: 1
   template:
     metadata:
-      creationTimestamp: null
       labels:
-        io.kompose.service: jenkins
+        app: jenkins-master
     spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 2000
       containers:
       - name: jenkins
-        image: 836585610568.dkr.ecr.us-east-2.amazonaws.com/gbh-jenkins:latest
+        image: <IMAGE_NAME>
         env:
         - name: JAVA_OPTS
           value: -Djenkins.install.runSetupWizard=false
@@ -24,12 +24,36 @@ spec:
           containerPort: 8080
         - name: jnlp-port
           containerPort: 50000
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 2
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 2
+          failureThreshold: 5
         volumeMounts:
-        - name: jenkins-home
-          mountPath: /var/jenkins_home
+        - mountPath: /var/jenkins_home
+          name: jenkins-home
+        - mountPath: /var/run/docker.sock
+          name: docker-socket
         imagePullPolicy: IfNotPresent
       restartPolicy: Always
       volumes:
       - name: jenkins-home
-        emptyDir: {}
+        awsElasticBlockStore:
+          volumeID: <VOLUME_ID>
+          fsType: ext4
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
 status: {}

@@ -5,10 +5,10 @@
 - [Kops](https://github.com/kubernetes/kops)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [OpenSSL](https://www.openssl.org/)
-- [Kubernetes Dashboard](https://github.com/kubernetes/dashboard)
 
 #### Useful
 - [kubectx & kubens](https://github.com/ahmetb/kubectx)
+- [Kompose](https://github.com/kubernetes/kompose)
 
 ### Content
 - [Installing AWS CLI](#installing-aws-cli)
@@ -17,7 +17,10 @@
 - [Create kops user](#create-kops-user)
 - [Create k8s cluster](#create-k8s-cluster)
 - [Deploy k8s dashboard and heapster](#deploy-k8s-dashboard-and-heapster)
-- [Grant access to your teammates](#grant-access-to-your-teammates)
+- [Deploy kube ingress aws controller](#deploy-kube-ingress-aws-controller)
+- [Deploy jenkins](#deploy-jenkins)
+- [Deploy Gitlab](#deploy-gitlab)
+- [Grant access to your teammates](#grant-access-to-the-cluster-to-your-teammates)
 
 ## Installing AWS CLI
 
@@ -123,7 +126,7 @@ kops create cluster \
    --node-size t2.micro \                                                      # size of node instances
    --zones us-east-2a,us-east-2b,us-east-2c \                                  # availability zone to use for nodes
    --master-zones us-east-2a,us-east-2b,us-east-2c \                           # availability zone to use for master
-   --cloud-labels "Client=GBH,PartOf=xhacluster,CreatedBy=Modesto Figuereo" \  # Some labels/tags
+   --cloud-labels "CreatedBy=Modesto Figuereo" \  # Some labels/tags
    ${NAME}
 ```
 
@@ -197,7 +200,7 @@ Kubernetes Dashboard is a handy tool for visualizing and performing basic tasks 
 
 To deploy Kubernetes Dashboard is as easy as:
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+kubectl apply -f ./kubernetes-dashboard/kubernetes-dashboard.yaml
 ```
 
 To enter the dashboard execute: `kubectl proxy`. <br />
@@ -239,10 +242,197 @@ That's it! Now you have visualization of all your resources in the cluster.
 
 #### Deploy Heapster
 
-TBD.
+Heapster is a tool that allow you to visualize the cpu and memory consumption of your pods and nodes.
+You can set it up by executing:
 
-## Grant access to your teammates
+```
+kubectl apply -f ./heapster/influxdb.yaml;
+kubectl apply -f ./heapster/grafana.yaml;
+kubectl apply -f ./heapster/heapster.yaml;
+```
 
+After Heapster is deployed it gets something in order to get metrics to display, after that you should get some charts in your dashboard displaying cpu and memory metrics.
+
+## Deploy kube ingress aws controller
+
+Kube Ingress AWS Controller together with Skipper and External-DNS make life easier when dealing routing traffic to your services through ingress resources. As soon as we create an ingress resource they create the DNS record in AWS for us and route the traffic in the ports and paths that are specified in the ingress resource.
+
+#### Service Accounts
+
+Before deploying any of the above mentioned resources we need to create the service account the will give them permission to perform. We can do that with the following commands:
+```
+kubectl apply -f ./users/skipper-aws-ingress-service-account.yaml;
+kubectl apply -f ./users/external-dns-service-account.yaml;
+```
+
+#### kube-ingress-aws-controller
+
+Now we can deploy kube-ingress-aws-controller with the following commandS:
+```
+AWS_REGION=[AWS REGION TO USE]   # Assign the name of the region you want to use this variable
+DOMAIN=[YOUR DOMAIN]             # Assign your domain name to this variable
+
+sed -i "s/<AWS_REGION>/$AWS_REGION/" ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
+sed -i "s/<DOMAIN>/$AWS_REGION/" ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
+
+kubectl apply -f ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml;
+```
+
+#### Skipper
+
+Let's deploy skipper:
+```
+kubectl apply -f ./kube-ingress-aws-controller/skipper/skipper-deployment.yaml;
+```
+
+#### External-dns
+
+Finally Let's deploy external-dns:
+```
+kubectl apply -f ./kube-ingress-aws-controller/external-dns/external-dns-deployment.yaml;
+```
+
+## Deploy Jenkins
+
+To deploy jenkins we need to build the image from the `jenkins/docker/jenkins.Dockerfile`, then push it to docker hub or our private registry. After that we can perform the deployment:
+
+```
+VOLUME_ID=<VOLUME ID>   # Assign the id of aws volume to use.
+IMAGE=<IMAGE_NAME>      # Assign the image name to this variable. (If you choosed to use a private repo, remember to prepend the name of the registry before the image name, i.e: registry/image-name:tag)
+
+sed -i "s/<VOLUME_ID>/$VOLUME_ID/" ./jenkins/jenkins-deployment.yaml
+sed -i "s/<IMAGE_NAME>/$IMAGE/" ./jenkins/jenkins-deployment.yaml
+
+kubectl apply -f ./jenkins/jenkins-namespace.yaml;
+kubectl apply -f ./jenkins/jenkins-service-accout.yaml;
+kubectl apply -f ./jenkins/jenkins-deployment.yaml;
+kubectl apply -f ./jenkins/jenkins-service.yaml;
+kubectl apply -f ./jenkins/jenkins-ingress.yaml;
+```
+
+After jenkins is deployed we need to do some manual configuration:
+- First of all enable security `Manage Jenkins -> Configure Global Security -> Enable Security`, then choose the options that better fits you and hit save.
+- Add kubernetes cloud `Manage Jenkins -> Configure System -> Add Cloud`, fill the options.
+
+@TODO: Insert here an screenshot as example on how to fill those options.
+
+## Deploy Gitlab
+Manifests to deploy GitLab on Kubernetes
+
+##### Bump versions
+
+* gitlab-runner:alpine-v11.6.0
+* gitlab:11.6.2-ce.0
+* postgresql:9.5.15
+* redis:5.0.3 (official redis container)
+
+#### Deploying GitLab itself
+```
+DOMAIN=<DOMAIN>                      # Assign your domain.
+VOLUME_ID_FOR_GITLAB=<VOLUME ID>     # Assign the id of aws volume for gitlab.
+VOLUME_ID_FOR_MINIO=<VOLUME ID>      # Assign the id of aws volume for minio.
+VOLUME_ID_FOR_POSTGRES=<VOLUME ID>   # Assign the id of aws volume for postgres.
+VOLUME_ID_FOR_REDIS=<VOLUME ID>      # Assign the id of aws volume for redis.
+
+sed -i "s/<DOMAIN>/$DOMAIN/" ./gitlab/gitlab/gitlab-ingress.yaml
+sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_GITLAB/" ./gitlab/gitlab/gitlab-deployment.yaml
+sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_MINIO/" ./gitlab/minio/minio-deployment.yaml
+sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_POSTGRES/" ./gitlab/postgres/postgres-deployment.yaml
+sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_REDIS/" ./gitlab/redis/redis-deployment.yaml
+
+# create gitlab namespace
+> $ kubectl create -f gitlab-namespace.yml
+
+# deploy redis
+> $ kubectl create -f gitlab/redis-deployment.yml
+> $ kubectl create -f gitlab/redis-service.yml
+
+# deploy postgres
+> $ kubectl create -f gitlab/postgresql-secret.yml
+> $ kubectl create -f gitlab/postgresql-config-map.yml
+> $ kubectl create -f gitlab/postgresql-deployment.yml
+> $ kubectl create -f gitlab/postgresql-service.yml
+
+# deploy gitlab itself
+> $ kubectl create -f gitlab/gitlab/gitlab-deployment.yml
+> $ kubectl create -f gitlab/gitlab/gitlab-service.yml
+> $ kubectl create -f gitlab/gitlab/gitlab-ingress.yml
+```
+
+#### Deploying GitLab Runner
+
+```
+# deploy Minio
+kubectl create -f ./gitlab/minio/minio-svc.yml
+kubectl create -f ./gitlab/minio/minio-deployment.yml
+
+# check that it's running
+kubectl get pods --namespace=gitlab
+
+    gitlab   minio-2719559383-y9hl2    1/1    Running   0   1m
+
+# check logs for AccessKey and SecretKey
+> $ kubectl logs -f minio-2719559383-y9hl2 --namespace=gitlab
++ exec app server /export
+
+Endpoint:  http://10.2.23.7:9000  http://127.0.0.1:9000
+AccessKey: 9HRGG3EK2DD0GP2HBB53
+SecretKey: zr+tKa6fS4/3PhYKWekJs65tRh8pbVl07cQlJfkW
+Region:    us-east-1
+
+Browser Access:
+   http://10.2.23.7:9000  http://127.0.0.1:9000
+
+Command-line Access: https://docs.minio.io/docs/minio-client-quickstart-guide
+   $ mc config host add myminio http://10.2.23.7:9000 9HRGG3EK2DD0GP2HBB53 zr+tKa6fS4/3PhYKWekJs65tRh8pbVl07cQlJfkW
+
+Object API (Amazon S3 compatible):
+   Go:         https://docs.minio.io/docs/golang-client-quickstart-guide
+   Java:       https://docs.minio.io/docs/java-client-quickstart-guide
+   Python:     https://docs.minio.io/docs/python-client-quickstart-guide
+   JavaScript: https://docs.minio.io/docs/javascript-client-quickstart-guide
+
+
+# create bucket named `runner`
+> $ kubectl exec -it minio-2719559383-y9hl2 --namespace=gitlab -- bash -c 'mkdir /export/runner'
+
+# register runner with token found on http://yourrunning-gitlab/admin/runners
+> $ kubectl run -it runner-registrator --image=gitlab/gitlab-runner:v1.5.2 --restart=Never -- register
+Waiting for pod default/runner-registrator-1573168835-tmlom to be running, status is Pending, pod ready: false
+
+Hit enter for command prompt
+
+Please enter the gitlab-ci coordinator URL (e.g. https://gitlab.com/ci):
+http://gitlab.gitlab/ci
+Please enter the gitlab-ci token for this runner:
+_TBBy-zRLk7ac1jZfnPu
+Please enter the gitlab-ci description for this runner:
+
+Please enter the gitlab-ci tags for this runner (comma separated):
+shared,specific
+Registering runner... succeeded                     runner=_TBBy-zR
+Please enter the executor: virtualbox, docker+machine, docker-ssh+machine, docker, docker-ssh, parallels, shell, ssh:
+docker
+Please enter the default Docker image (eg. ruby:2.1):
+python:3.5.1
+Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded!
+Session ended, resume using 'kubectl attach runner-registrator-1573168835-tmlom -c runner-registrator -i -t' command when the pod is running
+
+# delete temporary registrator
+> $ kubectl delete deployment/runner-registrator
+
+
+```
+
+Edit `gitlab/gitlab-runner/gitlab-runner-docker-configmap.yml` and fill in your runner token and minio credentials.
+
+```
+# deploy configmap and runnner itself
+> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-configmap.yml
+> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-deployment.yml
+```
+
+## Grant access to the cluster to your teammates
 #### Generate the certificates
 
 Copy the key and certificates from the kops configuration:
@@ -252,9 +442,9 @@ export CRT=<CRT_FILENAME>.crt;
 export MASTER_CRT=<CRT_FILENAME>.crt;
 export USERNAME=<USERNAME>;
 
-aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/private/ca/${KEY} ca.keY;
-aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/issued/ca/${CRT} ca.crt;
-aws s3 cp s3://${KOPS_STATE_STORE}/xhacluster.gbhplayground.com/pki/issued/master/${MASTER_CRT} ca_master.crt
+aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/private/ca/${KEY} ca.keY;
+aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/issued/ca/${CRT} ca.crt;
+aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/issued/master/${MASTER_CRT} ca_master.crt
 ```
 
 Generate certificates for the user:
@@ -274,25 +464,20 @@ kubectl create clusterrolebinding viewer-cluster-admin-binding --clusterrole=vie
 **NOTE: After generating the config file send it through a secure channel the your teammates.** <br />
 **NOTE: You can generate different kubeconfig files for each of your teammates with different roles and for different namespaces.**
 ```
-kubectl config set-cluster xhacluster.gbhplayground.com \
-  --server=https://api.xhacluster.gbhplayground.com \
+kubectl config set-cluster ${NAME} \
+  --server=https://api.${NAME} \
   --certificate-authority=./ca_master.crt \
   --embed-certs=true \
   --kubeconfig=~/path/to/config
 
-kubectl config set-credentials xhacluster.gbhplayground.com \
+kubectl config set-credentials ${NAME} \
   --client-certificate=./${USERNAME}.crt \
   --client-key=./${USERNAME}.key \
   --embed-certs=true \
   --kubeconfig=~/path/to/config
 
-kubectl config set-context xhacluster.gbhplayground.com \
-  --cluster=xhacluster.gbhplayground.com \
-  --user=xhacluster.gbhplayground.com \
+kubectl config set-context ${NAME} \
+  --cluster=${NAME} \
+  --user=${NAME} \
   --kubeconfig=~/path/to/config     
 ```
-
-- @TODO: Add section for kube-ingress-aws-controller deployment
-- @TODO: Add section for skipper deployment
-- @TODO: Add section for external-dns deployment
-- @TODO: Add section for Jenkins deployment

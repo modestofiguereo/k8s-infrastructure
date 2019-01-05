@@ -1,0 +1,68 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gitlab-postgresql
+  namespace: gitlab
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: gitlab-postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgresql:9.5.15
+        imagePullPolicy: Always
+        env:
+        - name: DB_USER
+          valueFrom:
+          secretKeyRef:
+            name: gitlab
+            key: DB_USER
+        - name: DB_PASS
+          valueFrom:
+          secretKeyRef:
+            name: gitlab
+            key: DB_PASS
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: gitlab
+              key: DB_NAME
+        - name: DB_EXTENSION
+          valueFrom:
+            configMapKeyRef:
+              name: gitlab
+              key: DB_EXTENSION
+        ports:
+        - name: postgres
+          containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql
+          name: data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+      volumes:
+      - name: data
+        awsElasticBlockStore:
+          volumeID: <VOLUME_ID>
+          fsType: ext4

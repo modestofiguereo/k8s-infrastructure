@@ -1,5 +1,7 @@
 FROM jenkinsci/blueocean
 
+LABEL maintainer="figuereo.fernandez.modesto@gmail.com"
+
 # Distributed Builds plugins
 RUN /usr/local/bin/install-plugins.sh ssh-slaves
 

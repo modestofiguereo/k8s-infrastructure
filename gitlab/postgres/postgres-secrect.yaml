@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab
+  namespace: gitlab
+type: Opaque
+data:
+  DB_USER: Z2l0bGFi
+  DB_PASS: K0JQNTJRSXhwVC9mbFZDTXBMM0tYQT09
