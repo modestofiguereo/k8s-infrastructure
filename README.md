@@ -11,7 +11,7 @@
 - [Kompose](https://github.com/kubernetes/kompose)
 
 ### Content
-- [Installing AWS CLI](docs/installing-tools.md)
+- [Installing Tools](docs/installing-tools.md)
 - [Create k8s cluster](docs/create-k8s-cluster.md)
 - [Deploy kube ingress aws controller](docs/deploy-kube-ingress-aws-controller.md)
 - [Deploy k8s dashboard and heapster](docs/deploy-k8s-dashboard-and-heapster.md)

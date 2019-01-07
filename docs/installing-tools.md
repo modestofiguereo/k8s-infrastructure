@@ -37,3 +37,6 @@ curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(cur
 chmod +x ./kubectl
 sudo mv ./kubectl /usr/local/bin/kubectl
 ```
+
+## Installing openssl
+@TODO: Add the installation process for openssl.
