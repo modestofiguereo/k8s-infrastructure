@@ -1,4 +1,4 @@
-# Deploying a Highly Available/Production Ready Kubernetes Cluster On AWS
+# Deploying a Highly Available/Production Ready Kubernetes Cluster on AWS
 
 #### Requirements
 - [AWS CLI](https://aws.amazon.com/cli/)
