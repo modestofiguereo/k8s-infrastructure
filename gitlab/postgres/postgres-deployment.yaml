@@ -12,20 +12,20 @@ spec:
     spec:
       containers:
       - name: postgresql
-        image: postgresql:9.5.15
+        image: postgres:9.5.15
         imagePullPolicy: Always
         env:
-        - name: DB_USER
+        - name: POSTGRES_USER
           valueFrom:
-          secretKeyRef:
-            name: gitlab
-            key: DB_USER
-        - name: DB_PASS
+            secretKeyRef:
+              name: gitlab
+              key: DB_USER
+        - name: POSTGRES_PASSWORD
           valueFrom:
-          secretKeyRef:
-            name: gitlab
-            key: DB_PASS
-        - name: DB_NAME
+            secretKeyRef:
+              name: gitlab
+              key: DB_PASS
+        - name: POSTGRES_DB
           valueFrom:
             configMapKeyRef:
               name: gitlab
@@ -63,6 +63,5 @@ spec:
           timeoutSeconds: 1
       volumes:
       - name: data
-        awsElasticBlockStore:
-          volumeID: <VOLUME_ID>
-          fsType: ext4
+        persistentVolumeClaim:
+          claimName: postgres-store

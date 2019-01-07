@@ -4,5 +4,5 @@ metadata:
   name: gitlab
   namespace: gitlab
 data:
-  DB_NAME: gitlab_production
+  DB_NAME: gitlab
   DB_EXTENSION: pg_trgm

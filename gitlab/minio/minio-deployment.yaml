@@ -30,6 +30,5 @@ spec:
           protocol: TCP
       volumes:
       - name: data-store
-        awsElasticBlockStore:
-          volumeID: <VOLUME_ID>
-          fsType: ext4
+        persistentVolumeClaim:
+          claimName: minio-store

@@ -4,7 +4,6 @@ metadata:
   name: jenkins
   namespace: jenkins
   labels:
-    io.kompose.service: jenkins
     application: jenkins
 spec:
   ports:
@@ -17,6 +16,6 @@ spec:
     targetPort: 50000
     protocol: TCP
   selector:
-    io.kompose.service: jenkins
+    application: jenkins
 status:
   loadBalancer: {}

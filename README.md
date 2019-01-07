@@ -16,8 +16,8 @@
 - [Installing kubectl](#installing-kubectl)
 - [Create kops user](#create-kops-user)
 - [Create k8s cluster](#create-k8s-cluster)
-- [Deploy k8s dashboard and heapster](#deploy-k8s-dashboard-and-heapster)
 - [Deploy kube ingress aws controller](#deploy-kube-ingress-aws-controller)
+- [Deploy k8s dashboard and heapster](#deploy-k8s-dashboard-and-heapster)
 - [Deploy jenkins](#deploy-jenkins)
 - [Deploy Gitlab](#deploy-gitlab)
 - [Grant access to your teammates](#grant-access-to-the-cluster-to-your-teammates)
@@ -29,54 +29,55 @@ If you already have AWS CLI you can skip this section.
 #### First let's get PIP
 **NOTE:** Depending on your env maybe you should replace `.profile` with `.bash_profile`, or `.bash_login`.
 ```
-curl -O https://bootstrap.pypa.io/get-pip.py;
-python get-pip.py --user;
-echo "export PATH=~/.local/bin:$PATH" | tee -a ~/.profile;
-source ~/.profile;
-pip --version;
+curl -O https://bootstrap.pypa.io/get-pip.py
+python get-pip.py --user
+echo "export PATH=~/.local/bin:$PATH" | tee -a ~/.profile
+source ~/.profile
+pip --version
 ```
 
 #### Now we can proceed
 ```
-pip install awscli --upgrade --user;
-aws --version;
+pip install awscli --upgrade --user
+aws --version
 ```
 
 ## Installing Kops
 
 Kops is a tool that automates the creation and maintenance of the kubernentes cluster.
 ```
-curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64;
-chmod +x ./kops;
-sudo mv ./kops /usr/local/bin/;
+curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+chmod +x ./kops
+sudo mv ./kops /usr/local/bin/
 ```
 
 ## Installing kubectl
 We need kubectl in order to interect with the kubernetes cluster:
 
 ```
-curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl;
-chmod +x ./kubectl;
-sudo mv ./kubectl /usr/local/bin/kubectl;
+curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
 ```
 
 ## Create kops user
 
+```
 export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
 export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
-```
-aws iam create-group --group-name kops;                                                                     # Create group for kops
 
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops;     # Give permission for EC2
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops; # Give permission for Route53
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops;      # Give permission for S3
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops;           # Give permission for IAM
-aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops;     # Give permission for the VPC
+aws iam create-group --group-name kops                                                                     # Create group for kops
 
-aws iam create-user --user-name kops;                                                                       # Create user for kops
-aws iam add-user-to-group --user-name kops --group-name kops;                                               # Add user kops to the group kops
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops     # Give permission for EC2
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops # Give permission for Route53
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops      # Give permission for S3
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops           # Give permission for IAM
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops     # Give permission for the VPC
 
-aws iam create-access-key --user-name kops;                                                                 # Generate access key
+aws iam create-user --user-name kops                                                                       # Create user for kops
+aws iam add-user-to-group --user-name kops --group-name kops                                               # Add user kops to the group kops
+
+aws iam create-access-key --user-name kops                                                                 # Generate access key
 ```
 
 You should record the SecretAccessKey and AccessKeyID in the returned JSON output, and then use them below:
@@ -88,10 +89,10 @@ aws iam list-users      # you should see a list of all your IAM users here
 
 # Because "aws configure" doesn't export these vars for kops to use, we export them now
 
-echo "export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)" | tee -a ~/.profile;
-echo "export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)" | tee -a ~/.profile;
+echo "export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)" | tee -a ~/.profile
+echo "export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)" | tee -a ~/.profile
 
-source ~/.profile;
+source ~/.profile
 ```
 
 ## Create k8s cluster
@@ -101,18 +102,19 @@ source ~/.profile;
 Put the name of your cluster and the state store in these variables:
 ```
 export NAME=<YOUR_CLUSTER_NAME>
-export KOPS_STATE_STORE=<YOUR_S3_STORE_BUCKET_NAME>
+export KOPS_STATE_STORE_NAME=prefix-example-com-state-store
+export KOPS_STATE_STORE=s3://${KOPS_STATE_STORE_NAME}
 ```
 
 Create the state store bucket:
 ```
 aws s3api create-bucket \
-    --bucket prefix-example-com-state-store \
+    --bucket ${KOPS_STATE_STORE_NAME} \
     --region us-east-1
     # --create-bucket-configuration LocationConstraint=<region> # for regions other than us-east-1.
 
 # kops recomends using versioning
-aws s3api put-bucket-versioning --bucket prefix-example-com-state-store  --versioning-configuration Status=Enabled
+aws s3api put-bucket-versioning --bucket ${KOPS_STATE_STORE_NAME}  --versioning-configuration Status=Enabled
 ```
 
 #### Create cluster
@@ -120,13 +122,13 @@ aws s3api put-bucket-versioning --bucket prefix-example-com-state-store  --versi
 Create a HA cluster (you can find more information on these flags on kops documenetation):
 ```
 kops create cluster \
-   --master-count=3 \                                                          # number of master nodes
-   --master-size t2.small \                                                    # size of the master instances
-   --node-count 5 \                                                            # number of nodes
-   --node-size t2.micro \                                                      # size of node instances
-   --zones us-east-2a,us-east-2b,us-east-2c \                                  # availability zone to use for nodes
-   --master-zones us-east-2a,us-east-2b,us-east-2c \                           # availability zone to use for master
-   --cloud-labels "CreatedBy=Modesto Figuereo" \  # Some labels/tags
+   --master-count=3 \
+   --master-size t2.small \
+   --node-count 5 \                                                       
+   --node-size t2.micro \
+   --zones us-east-2a,us-east-2b,us-east-2c \
+   --master-zones us-east-2a,us-east-2b,us-east-2c \
+   --cloud-labels "kubernetes.io/cluster/${NAME}: owned" \
    ${NAME}
 ```
 
@@ -134,7 +136,7 @@ kops create cluster \
 
 #### Add policy types to the cluster
 
-Execute: `kops edit cluster --name ${NAME}``
+Execute: `kops edit cluster --name ${NAME}`
 
 Add this under the `spec` section:
 ```
@@ -187,10 +189,99 @@ Add this under the `spec` section:
       ]
 ```
 
-Apply the changes with `kops update cluster --name ${NAME} --yes`.
+Apply the changes with `kops update cluster --name ${NAME} --yes`. After that the AWS is going to take sometime to set up the cluster. We can use the command `kops validate cluster` to know when the cluster is ready.
 
 **NOTE: you can tweak the details of you instance group by executing (for example, min and max nodes for auto scaling) `kops edit ig <instance group name>`**
 
+## Deploy kube ingress aws controller
+
+Kube Ingress AWS Controller together with Skipper and External-DNS make life easier when dealing routing traffic to your services through ingress resources. As soon as we create an ingress resource they create the DNS record in AWS for us and route the traffic in the ports and paths that are specified in the ingress resource.
+
+#### Service Accounts
+
+Before deploying any of the above mentioned resources we need to create the service account the will give them permission to perform. We can do that with the following commands:
+```
+kubectl apply -f ./kube-ingress-aws-controller/skipper-aws-ingress-service-account.yaml
+kubectl apply -f ./kube-ingress-aws-controller/external-dns/external-dns-service-account.yaml
+```
+
+#### kube-ingress-aws-controller
+
+###### Security Group
+Before deploying the kube-ingress-aws-controller we need to create an special security group for it:
+
+```
+KOPS_CLUSTER_NAME=${NAME}
+
+VPC_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=nodes.${KOPS_CLUSTER_NAME} | jq '.["SecurityGroups"][0].VpcId' -r)
+
+aws ec2 create-security-group --description ingress.${KOPS_CLUSTER_NAME} --group-name ingress.${KOPS_CLUSTER_NAME} --vpc-id $VPC_ID
+aws ec2 describe-security-groups --filter Name=vpc-id,Values=$VPC_ID  Name=group-name,Values=ingress.${KOPS_CLUSTER_NAME}
+
+SG_ID_INGRESS=$(aws ec2 describe-security-groups --filter Name=vpc-id,Values=$VPC_ID  Name=group-name,Values=ingress.${KOPS_CLUSTER_NAME} | jq '.["SecurityGroups"][0]["GroupId"]' -r)
+SG_ID_NODE=$(aws ec2 describe-security-groups --filter Name=vpc-id,Values=$VPC_ID  Name=group-name,Values=nodes.${KOPS_CLUSTER_NAME} | jq '.["SecurityGroups"][0]["GroupId"]' -r)
+
+aws ec2 authorize-security-group-ingress --group-id $SG_ID_INGRESS --protocol tcp --port 443 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $SG_ID_INGRESS --protocol tcp --port 80 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-egress --group-id $SG_ID_INGRESS --protocol all --port -1 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $SG_ID_NODE --protocol all --port -1 --source-group $SG_ID_INGRESS
+aws ec2 create-tags --resources $SG_ID_INGRESS --tags Key="kubernetes.io/cluster/${KOPS_CLUSTER_NAME}",Value="owned" Key="kubernetes:application",Value="kube-ingress-aws-controller"
+```
+
+###### AWS Certificate Manager (ACM)
+
+To have TLS termination you can use AWS managed certificates. If you are unsure if you have at least one certificate provisioned use the following command to list ACM certificates:
+
+`aws acm list-certificates`
+
+If you have one, you can move on to the next section.
+
+To create an ACM certificate, you have to request a CSR with a domain name that you own in route53, for example.org. We will here request one wildcard certificate for example.org:
+
+`aws acm request-certificate --domain-name *.example.org`
+
+You will have to successfully do a challenge to show ownership of the given domain. In most cases you have to click on a link from an e-mail sent by certificates.amazon.com. E-Mail subject will be Certificate approval for <example.org>.
+
+If you did the challenge successfully, you can now check the status of your certificate. Find the ARN of the new certificate:
+
+`aws acm list-certificates`
+
+Describe the certificate and check the Status value:
+
+`aws acm describe-certificate --certificate-arn arn:aws:acm:<snip> | jq '.["Certificate"]["Status"]'`
+
+If this is no "ISSUED", your certificate is not valid and you have to fix it. To resend the CSR validation e-mail, you can use:
+
+`aws acm resend-validation-email`
+
+###### Deploy the ingress controller
+
+Now we can deploy kube-ingress-aws-controller with the following commands:
+
+```
+AWS_REGION=[AWS REGION TO USE]   # Assign the name of the region you want to use this variable
+DOMAIN=[YOUR DOMAIN]             # Assign your domain name to this variable
+
+sed -i "s/<AWS_REGION>/$AWS_REGION/" ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
+sed -i "s/<DOMAIN>/$DOMAIN/" ./kube-ingress-aws-controller/external-dns/external-dns-deployment.yaml
+sed -i "s/<AWS_REGION>/$AWS_REGION/" ./kube-ingress-aws-controller/external-dns/external-dns-deployment.yaml
+
+kubectl apply -f ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
+```
+
+#### Skipper
+
+Let's deploy skipper:
+```
+kubectl apply -f ./kube-ingress-aws-controller/skipper/skipper-deployment.yaml
+```
+
+#### External-dns
+
+Finally Let's deploy external-dns:
+```
+kubectl apply -f ./kube-ingress-aws-controller/external-dns/external-dns-deployment.yaml
+```
 
 ## Deploy k8s dashboard and heapster
 
@@ -204,7 +295,7 @@ kubectl apply -f ./kubernetes-dashboard/kubernetes-dashboard.yaml
 ```
 
 To enter the dashboard execute: `kubectl proxy`. <br />
-Now access the url: `http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/`.
+Now you can access the dashboard in this url: [`http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/`](`http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/`).
 
 #### Create an admin user for your dashboard
 
@@ -212,7 +303,7 @@ For accessing the dashboard we need an user with the right permissions, here I w
 
 Using the admin user yaml inside the `users/` directory we can create the user and grant them admin privileges as follows:
 ```
-kubectl apply -f ./user/admin-user-service-account.yaml
+kubectl apply -f ./kubernetes-dashboard/admin-user-service-account.yaml
 ```
 
 Now we need the token for that user in other to login to the dashboard, we can get it with this command:
@@ -246,68 +337,36 @@ Heapster is a tool that allow you to visualize the cpu and memory consumption of
 You can set it up by executing:
 
 ```
-kubectl apply -f ./heapster/influxdb.yaml;
-kubectl apply -f ./heapster/grafana.yaml;
-kubectl apply -f ./heapster/heapster.yaml;
+DOMAIN=<DOMAIN>         # Assign your domain.
+
+sed -i "s/<DOMAIN>/$DOMAIN/" ./kubernetes-dashboard/heapster/grafana.yaml
+
+kubectl apply -f ./kubernetes-dashboard/heapster/influxdb.yaml
+kubectl apply -f ./kubernetes-dashboard/heapster/grafana.yaml
+kubectl apply -f ./kubernetes-dashboard/heapster/heapster.yaml
 ```
 
 After Heapster is deployed it gets something in order to get metrics to display, after that you should get some charts in your dashboard displaying cpu and memory metrics.
 
-## Deploy kube ingress aws controller
-
-Kube Ingress AWS Controller together with Skipper and External-DNS make life easier when dealing routing traffic to your services through ingress resources. As soon as we create an ingress resource they create the DNS record in AWS for us and route the traffic in the ports and paths that are specified in the ingress resource.
-
-#### Service Accounts
-
-Before deploying any of the above mentioned resources we need to create the service account the will give them permission to perform. We can do that with the following commands:
-```
-kubectl apply -f ./users/skipper-aws-ingress-service-account.yaml;
-kubectl apply -f ./users/external-dns-service-account.yaml;
-```
-
-#### kube-ingress-aws-controller
-
-Now we can deploy kube-ingress-aws-controller with the following commandS:
-```
-AWS_REGION=[AWS REGION TO USE]   # Assign the name of the region you want to use this variable
-DOMAIN=[YOUR DOMAIN]             # Assign your domain name to this variable
-
-sed -i "s/<AWS_REGION>/$AWS_REGION/" ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
-sed -i "s/<DOMAIN>/$AWS_REGION/" ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml
-
-kubectl apply -f ./kube-ingress-aws-controller/kube-ingress-aws-controller-deployment.yaml;
-```
-
-#### Skipper
-
-Let's deploy skipper:
-```
-kubectl apply -f ./kube-ingress-aws-controller/skipper/skipper-deployment.yaml;
-```
-
-#### External-dns
-
-Finally Let's deploy external-dns:
-```
-kubectl apply -f ./kube-ingress-aws-controller/external-dns/external-dns-deployment.yaml;
-```
-
 ## Deploy Jenkins
 
-To deploy jenkins we need to build the image from the `jenkins/docker/jenkins.Dockerfile`, then push it to docker hub or our private registry. After that we can perform the deployment:
+To deploy jenkins we need to build the image from the `jenkins/docker/jenkins.Dockerfile`, then push it to docker hub or our private registry.
+
+After that we can perform the deployment:
 
 ```
-VOLUME_ID=<VOLUME ID>   # Assign the id of aws volume to use.
 IMAGE=<IMAGE_NAME>      # Assign the image name to this variable. (If you choosed to use a private repo, remember to prepend the name of the registry before the image name, i.e: registry/image-name:tag)
+DOMAIN=<DOMAIN>         # Assign your domain.
 
-sed -i "s/<VOLUME_ID>/$VOLUME_ID/" ./jenkins/jenkins-deployment.yaml
 sed -i "s/<IMAGE_NAME>/$IMAGE/" ./jenkins/jenkins-deployment.yaml
+sed -i "s/<DOMAIN>/$DOMAIN/" ./jenkins/jenkins-ingress.yaml
 
-kubectl apply -f ./jenkins/jenkins-namespace.yaml;
-kubectl apply -f ./jenkins/jenkins-service-accout.yaml;
-kubectl apply -f ./jenkins/jenkins-deployment.yaml;
-kubectl apply -f ./jenkins/jenkins-service.yaml;
-kubectl apply -f ./jenkins/jenkins-ingress.yaml;
+kubectl apply -f ./jenkins/jenkins-namespace.yaml
+kubectl apply -f ./jenkins/jenkins-service-account.yaml
+kubectl apply -f ./jenkins/jenkins-persistent-volumen-claim.yaml
+kubectl apply -f ./jenkins/jenkins-deployment.yaml
+kubectl apply -f ./jenkins/jenkins-service.yaml
+kubectl apply -f ./jenkins/jenkins-ingress.yaml
 ```
 
 After jenkins is deployed we need to do some manual configuration:
@@ -329,42 +388,38 @@ Manifests to deploy GitLab on Kubernetes
 #### Deploying GitLab itself
 ```
 DOMAIN=<DOMAIN>                      # Assign your domain.
-VOLUME_ID_FOR_GITLAB=<VOLUME ID>     # Assign the id of aws volume for gitlab.
-VOLUME_ID_FOR_MINIO=<VOLUME ID>      # Assign the id of aws volume for minio.
-VOLUME_ID_FOR_POSTGRES=<VOLUME ID>   # Assign the id of aws volume for postgres.
-VOLUME_ID_FOR_REDIS=<VOLUME ID>      # Assign the id of aws volume for redis.
 
 sed -i "s/<DOMAIN>/$DOMAIN/" ./gitlab/gitlab/gitlab-ingress.yaml
-sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_GITLAB/" ./gitlab/gitlab/gitlab-deployment.yaml
-sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_MINIO/" ./gitlab/minio/minio-deployment.yaml
-sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_POSTGRES/" ./gitlab/postgres/postgres-deployment.yaml
-sed -i "s/<VOLUME_ID>/$VOLUME_ID_FOR_REDIS/" ./gitlab/redis/redis-deployment.yaml
 
 # create gitlab namespace
-> $ kubectl create -f gitlab-namespace.yml
+kubectl create -f ./gitlab/gitlab-namespace.yaml
 
 # deploy redis
-> $ kubectl create -f gitlab/redis-deployment.yml
-> $ kubectl create -f gitlab/redis-service.yml
+kubectl create -f ./gitlab/redis/redis-persistent-volume-claim.yaml
+kubectl create -f ./gitlab/redis/redis-deployment.yaml
+kubectl create -f ./gitlab/redis/redis-service.yaml
 
 # deploy postgres
-> $ kubectl create -f gitlab/postgresql-secret.yml
-> $ kubectl create -f gitlab/postgresql-config-map.yml
-> $ kubectl create -f gitlab/postgresql-deployment.yml
-> $ kubectl create -f gitlab/postgresql-service.yml
+kubectl create -f ./gitlab/postgres/postgres-persistent-volume-claim.yaml
+kubectl create -f ./gitlab/postgres/postgres-secret.yaml
+kubectl create -f ./gitlab/postgres/postgres-config-map.yaml
+kubectl create -f ./gitlab/postgres/postgres-deployment.yaml
+kubectl create -f ./gitlab/postgres/postgres-service.yaml
 
 # deploy gitlab itself
-> $ kubectl create -f gitlab/gitlab/gitlab-deployment.yml
-> $ kubectl create -f gitlab/gitlab/gitlab-service.yml
-> $ kubectl create -f gitlab/gitlab/gitlab-ingress.yml
+kubectl create -f ./gitlab/gitlab/gitlab-persistent-volume-claim.yaml
+kubectl create -f ./gitlab/gitlab/gitlab-deployment.yaml
+kubectl create -f ./gitlab/gitlab/gitlab-service.yaml
+kubectl create -f ./gitlab/gitlab/gitlab-ingress.yaml
 ```
 
 #### Deploying GitLab Runner
 
 ```
 # deploy Minio
-kubectl create -f ./gitlab/minio/minio-svc.yml
-kubectl create -f ./gitlab/minio/minio-deployment.yml
+kubectl create -f ./gitlab/minio/gitlab-persistent-volume-claim.yaml
+kubectl create -f ./gitlab/minio/minio-deployment.yaml
+kubectl create -f ./gitlab/minio/minio-service.yaml
 
 # check that it's running
 kubectl get pods --namespace=gitlab
@@ -424,12 +479,12 @@ Session ended, resume using 'kubectl attach runner-registrator-1573168835-tmlom 
 
 ```
 
-Edit `gitlab/gitlab-runner/gitlab-runner-docker-configmap.yml` and fill in your runner token and minio credentials.
+Edit `gitlab/gitlab-runner/gitlab-runner-docker-configmap.yaml` and fill in your runner token and minio credentials.
 
 ```
 # deploy configmap and runnner itself
-> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-configmap.yml
-> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-deployment.yml
+> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-configmap.yaml
+> $ kubectl create -f ./gitlab-runner/gitlab-runner-docker-deployment.yaml
 ```
 
 ## Grant access to the cluster to your teammates
@@ -437,13 +492,13 @@ Edit `gitlab/gitlab-runner/gitlab-runner-docker-configmap.yml` and fill in your 
 
 Copy the key and certificates from the kops configuration:
 ```
-export KEY=<KEY_FILENAME>.key;
-export CRT=<CRT_FILENAME>.crt;
-export MASTER_CRT=<CRT_FILENAME>.crt;
-export USERNAME=<USERNAME>;
+export KEY=<KEY_FILENAME>.key
+export CRT=<CRT_FILENAME>.crt
+export MASTER_CRT=<CRT_FILENAME>.crt
+export USERNAME=<USERNAME>
 
-aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/private/ca/${KEY} ca.keY;
-aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/issued/ca/${CRT} ca.crt;
+aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/private/ca/${KEY} ca.keY
+aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/issued/ca/${CRT} ca.crt
 aws s3 cp s3://${KOPS_STATE_STORE}/${NAME}/pki/issued/master/${MASTER_CRT} ca_master.crt
 ```
 

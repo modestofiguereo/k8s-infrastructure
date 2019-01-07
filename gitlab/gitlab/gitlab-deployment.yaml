@@ -14,7 +14,14 @@ spec:
       containers:
       - name: gitlab
         image: gitlab/gitlab-ce:11.6.2-ce.0
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+          requests:
+            cpu: 1000m
+            memory: 2Gi
         env:
         - name: TZ
           value: Europe/Stockholm
@@ -31,7 +38,7 @@ spec:
           value: nXJJ358Qnci0yF9qpAsLrF2vImaoFR03
 
         - name: GITLAB_ROOT_PASSWORD
-          value: root
+          value: root1234567890
         - name: GITLAB_ROOT_EMAIL
           value: root@example.com
 
@@ -65,7 +72,7 @@ spec:
         - name: DB_PASS
           value: +BP52QIxpT/flVCMpL3KXA==
         - name: DB_NAME
-          value: gitlab_production
+          value: gitlab
 
         - name: REDIS_HOST
           value: gitlab-redis
@@ -121,10 +128,9 @@ spec:
           httpGet:
             path: /users/sign_in
             port: 80
-          initialDelaySeconds: 15
+          initialDelaySeconds: 40
           timeoutSeconds: 1
       volumes:
       - name: data
-        awsElasticBlockStore:
-          volumeID: <VOLUME_ID>
-          fsType: ext4
+        persistentVolumeClaim:
+          claimName: gitlab-store

@@ -11,7 +11,7 @@ spec:
     serviceName: jenkins
     servicePort: 80
   rules:
-  - host: ci.gbhplayground.com
+  - host: ci.<DOMAIN>
     http:
       paths:
       - path: /

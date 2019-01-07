@@ -35,6 +35,5 @@ spec:
           timeoutSeconds: 1
       volumes:
       - name: data
-        awsElasticBlockStore:
-          volumeID: <VOLUME_ID>
-          fsType: ext4
+        persistentVolumeClaim:
+          claimName: redis-store

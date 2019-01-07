@@ -3,12 +3,14 @@ kind: Deployment
 metadata:
   name: jenkins
   namespace: jenkins
+  labels:
+    application: jenkins
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: jenkins-master
+        application: jenkins
     spec:
       securityContext:
         runAsUser: 0
@@ -28,6 +30,8 @@ spec:
           httpGet:
             path: /login
             port: 8080
+
+          initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 2
@@ -36,10 +40,10 @@ spec:
           httpGet:
             path: /login
             port: 8080
-          initialDelaySeconds: 20
+          initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
-          successThreshold: 2
+          successThreshold: 1
           failureThreshold: 5
         volumeMounts:
         - mountPath: /var/jenkins_home
@@ -50,9 +54,8 @@ spec:
       restartPolicy: Always
       volumes:
       - name: jenkins-home
-        awsElasticBlockStore:
-          volumeID: <VOLUME_ID>
-          fsType: ext4
+        persistentVolumeClaim:
+          claimName: jenkins-store
       - name: docker-socket
         hostPath:
           path: /var/run/docker.sock

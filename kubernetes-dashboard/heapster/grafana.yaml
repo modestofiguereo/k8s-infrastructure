@@ -70,3 +70,26 @@ spec:
     targetPort: 3000
   selector:
     k8s-app: grafana
+status:
+  loadBalancer: {}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: kube-system
+  labels:
+    io.kompose.service: monitoring-grafana
+    application: monitoring-grafana
+spec:
+  backend:
+    serviceName: monitoring-grafana
+    servicePort: 80
+  rules:
+  - host: grafana.<DOMAIN>.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: monitoring-grafana
+          servicePort: 80
