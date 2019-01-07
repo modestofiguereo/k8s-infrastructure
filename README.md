@@ -378,6 +378,8 @@ After jenkins is deployed we need to do some manual configuration:
 ## Deploy Gitlab
 Manifests to deploy GitLab on Kubernetes
 
+**NOTE: THIS SECTION IS STILL IN DEVELOPMENT**
+
 ##### Bump versions
 
 * gitlab-runner:alpine-v11.6.0
