@@ -40,7 +40,7 @@ kubectl create -f ./gitlab/gitlab/gitlab-ingress.yaml
 
 ```
 # deploy Minio
-kubectl create -f ./gitlab/minio/gitlab-persistent-volume-claim.yaml
+kubectl create -f ./gitlab/minio/minio-persistent-volume-claim.yaml
 kubectl create -f ./gitlab/minio/minio-deployment.yaml
 kubectl create -f ./gitlab/minio/minio-service.yaml
 
